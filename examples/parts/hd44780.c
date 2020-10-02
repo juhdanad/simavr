@@ -144,7 +144,11 @@ hd44780_write_data(
 	} else {
 		hd44780_kick_cursor(b);
 	}
-	hd44780_set_flag(b, HD44780_FLAG_DIRTY, 1);
+	if (b->cursor < 0x80) {
+		hd44780_set_flag(b, HD44780_FLAG_DIRTY, 1);
+	} else {
+		hd44780_set_flag(b, HD44780_FLAG_CRAM_DIRTY, 1);
+	}
 	return delay;
 }
 

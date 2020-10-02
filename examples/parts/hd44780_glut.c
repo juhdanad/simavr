@@ -3,6 +3,7 @@
 
 	Copyright Luki <humbell@ethz.ch>
 	Copyright 2011 Michel Pollet <buserror@gmail.com>
+	Copyright 2020 Akos Kiss <akiss@inf.u-szeged.hu>
 
  	This file is part of simavr.
 
@@ -28,28 +29,60 @@
 #include <GL/glut.h>
 #endif
 
-#include "lcd_font.h"	// generated with gimp
+#include "hd44780_cgrom.h"
 
-static GLuint font_texture;
-static int charwidth = 5;
-static int charheight = 7;
+#define HD44780_GL_TEXTURE_WIDTH HD44780_CHAR_WIDTH
+#define HD44780_GL_TEXTURE_HEIGHT (HD44780_CHAR_NUM * HD44780_CHAR_HEIGHT)
+#define HD44780_GL_TEXTURE_BYTES_PER_PIXEL 4 // RGBA
+#define HD44780_GL_TEXTURE_SIZE (HD44780_GL_TEXTURE_WIDTH * HD44780_GL_TEXTURE_HEIGHT * HD44780_GL_TEXTURE_BYTES_PER_PIXEL)
+#define HD44780_GL_BORDER 3
+
+static unsigned char cgrom_pixel_data[HD44780_GL_TEXTURE_SIZE];
+static unsigned char cgram_pixel_data[HD44780_GL_TEXTURE_SIZE] = {0};  // NOTE: much more than actually necessary but ensures texture size identical to cgrom
+
+static GLuint cgrom_texture;
+static GLuint cgram_texture;
 
 void
 hd44780_gl_init()
 {
-	glGenTextures(1, &font_texture);
-	glBindTexture(GL_TEXTURE_2D, font_texture);
+	for (int c = 0; c < HD44780_CHAR_NUM; c++) {
+		for (int y = 0; y < HD44780_CHAR_HEIGHT; y++) {
+			uint8_t bits = hd44780_cgrom[c][y];
+			uint8_t mask = 1 << (HD44780_CHAR_WIDTH - 1);
+			for (int x = 0; x < HD44780_CHAR_WIDTH; x++, mask >>= 1) {
+				int p = ((c * HD44780_CHAR_HEIGHT * HD44780_CHAR_WIDTH) + (y * HD44780_CHAR_WIDTH) + x) * HD44780_GL_TEXTURE_BYTES_PER_PIXEL;
+				cgrom_pixel_data[p + 0] = 0;
+				cgrom_pixel_data[p + 1] = 0;
+				cgrom_pixel_data[p + 2] = 0;
+				cgrom_pixel_data[p + 3] = bits & mask ? 0xff : 0;
+			}
+		}
+	}
+
+	glGenTextures(1, &cgrom_texture);
+	glBindTexture(GL_TEXTURE_2D, cgrom_texture);
 	glTexImage2D(GL_TEXTURE_2D, 0, 4,
-			lcd_font.width,
-			lcd_font.height, 0, GL_RGBA,
+			HD44780_GL_TEXTURE_WIDTH,
+			HD44780_GL_TEXTURE_HEIGHT, 0, GL_RGBA,
 	        GL_UNSIGNED_BYTE,
-	        lcd_font.pixel_data);
+	        cgrom_pixel_data);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	glGenTextures(1, &cgram_texture);
+	glBindTexture(GL_TEXTURE_2D, cgram_texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, 4,
+			HD44780_GL_TEXTURE_WIDTH,
+			HD44780_GL_TEXTURE_HEIGHT, 0, GL_RGBA,
+	        GL_UNSIGNED_BYTE,
+	        cgram_pixel_data);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
-	glScalef(1.0f / (GLfloat) lcd_font.width, 1.0f / (GLfloat) lcd_font.height, 1.0f);
+	glScalef(1.0f / (GLfloat) HD44780_GL_TEXTURE_WIDTH, 1.0f / (GLfloat) HD44780_GL_TEXTURE_HEIGHT, 1.0f);
 
 	glMatrixMode(GL_MODELVIEW);
 }
@@ -64,17 +97,17 @@ glColor32U(uint32_t color)
 			(float)((color) & 0xff) / 255.0f );
 }
 
-void
-glputchar(char c,
+static void
+glputchar(uint8_t c,
 		uint32_t character,
 		uint32_t text,
 		uint32_t shadow)
 {
 	int index = c;
-	int left = index * charwidth;
-	int right = index * charwidth + charwidth;
-	int top = 0;
-	int bottom = 7;
+	int left = 0;
+	int right = HD44780_CHAR_WIDTH;
+	int top = index * HD44780_CHAR_HEIGHT;
+	int bottom = index * HD44780_CHAR_HEIGHT + HD44780_CHAR_HEIGHT;
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -82,37 +115,36 @@ glputchar(char c,
 	glDisable(GL_TEXTURE_2D);
 	glColor32U(character);
 	glBegin(GL_QUADS);
-	glVertex3i(5, 7, 0);
-	glVertex3i(0, 7, 0);
-	glVertex3i(0, 0, 0);
-	glVertex3i(5, 0, 0);
+	glVertex3i(HD44780_CHAR_WIDTH, HD44780_CHAR_HEIGHT, 0);
+	glVertex3i(0,                  HD44780_CHAR_HEIGHT, 0);
+	glVertex3i(0,                  0,                   0);
+	glVertex3i(HD44780_CHAR_WIDTH, 0,                   0);
 	glEnd();
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, font_texture);
+	glBindTexture(GL_TEXTURE_2D, index < 16 ? cgram_texture : cgrom_texture);
 	if (shadow) {
 		glColor32U(shadow);
 		glPushMatrix();
 		glTranslatef(.2f, .2f, 0);
 		glBegin(GL_QUADS);
-		glTexCoord2i(right, top);		glVertex3i(5, 0, 0);
-		glTexCoord2i(left, top);		glVertex3i(0, 0, 0);
-		glTexCoord2i(left, bottom);		glVertex3i(0, 7, 0);
-		glTexCoord2i(right, bottom);	glVertex3i(5, 7, 0);
+		glTexCoord2i(right, top);     glVertex3i(HD44780_CHAR_WIDTH, 0,                   0);
+		glTexCoord2i(left, top);      glVertex3i(0,                  0,                   0);
+		glTexCoord2i(left, bottom);   glVertex3i(0,                  HD44780_CHAR_HEIGHT, 0);
+		glTexCoord2i(right, bottom);  glVertex3i(HD44780_CHAR_WIDTH, HD44780_CHAR_HEIGHT, 0);
 		glEnd();
 		glPopMatrix();
 	}
 	glColor32U(text);
 	glBegin(GL_QUADS);
-	glTexCoord2i(right, top);		glVertex3i(5, 0, 0);
-	glTexCoord2i(left, top);		glVertex3i(0, 0, 0);
-	glTexCoord2i(left, bottom);		glVertex3i(0, 7, 0);
-	glTexCoord2i(right, bottom);	glVertex3i(5, 7, 0);
+	glTexCoord2i(right, top);     glVertex3i(HD44780_CHAR_WIDTH, 0,                   0);
+	glTexCoord2i(left, top);      glVertex3i(0,                  0,                   0);
+	glTexCoord2i(left, bottom);   glVertex3i(0,                  HD44780_CHAR_HEIGHT, 0);
+	glTexCoord2i(right, bottom);  glVertex3i(HD44780_CHAR_WIDTH, HD44780_CHAR_HEIGHT, 0);
 	glEnd();
-
 }
 
 void
@@ -125,19 +157,55 @@ hd44780_gl_draw(
 {
 	int rows = b->w;
 	int lines = b->h;
-	int border = 3;
 
 	glDisable(GL_TEXTURE_2D);
 	glDisable(GL_BLEND);
 	glColor32U(background);
-	glTranslatef(border, border, 0);
+	glTranslatef(HD44780_GL_BORDER, HD44780_GL_BORDER, 0);
 	glBegin(GL_QUADS);
-	glVertex3f(rows * charwidth + (rows - 1) + border, -border, 0);
-	glVertex3f(-border, -border, 0);
-	glVertex3f(-border, lines * charheight + (lines - 1) + border, 0);
-	glVertex3f(rows * charwidth + (rows - 1) + border, lines * charheight
-	        + (lines - 1) + border, 0);
+	glVertex3f(rows * HD44780_CHAR_WIDTH + (rows - 1) + HD44780_GL_BORDER, -HD44780_GL_BORDER, 0);
+	glVertex3f(-HD44780_GL_BORDER, -HD44780_GL_BORDER, 0);
+	glVertex3f(-HD44780_GL_BORDER, lines * HD44780_CHAR_HEIGHT + (lines - 1) + HD44780_GL_BORDER, 0);
+	glVertex3f(rows * HD44780_CHAR_WIDTH + (rows - 1) + HD44780_GL_BORDER, lines * HD44780_CHAR_HEIGHT
+	        + (lines - 1) + HD44780_GL_BORDER, 0);
 	glEnd();
+
+	// Re-generate texture for cgram
+	if (hd44780_get_flag(b, HD44780_FLAG_CRAM_DIRTY)) {
+		for (int c = 0; c < 8; c++) {
+			for (int y = 0; y < HD44780_CHAR_HEIGHT; y++) {
+				uint8_t bits = b->vram[0x80 + c * 8 + y];
+				uint8_t mask = 1 << (HD44780_CHAR_WIDTH - 1);
+				for (int x = 0; x < HD44780_CHAR_WIDTH; x++, mask >>= 1) {
+					int p1 = ((c * HD44780_CHAR_HEIGHT * HD44780_CHAR_WIDTH) + (y * HD44780_CHAR_WIDTH) + x) * HD44780_GL_TEXTURE_BYTES_PER_PIXEL;
+					cgram_pixel_data[p1 + 0] = 0;
+					cgram_pixel_data[p1 + 1] = 0;
+					cgram_pixel_data[p1 + 2] = 0;
+					cgram_pixel_data[p1 + 3] = bits & mask ? 0xff : 0;
+
+					int p2 = (((c + 8) * HD44780_CHAR_HEIGHT * HD44780_CHAR_WIDTH) + (y * HD44780_CHAR_WIDTH) + x) * HD44780_GL_TEXTURE_BYTES_PER_PIXEL;
+					cgram_pixel_data[p2 + 0] = 0;
+					cgram_pixel_data[p2 + 1] = 0;
+					cgram_pixel_data[p2 + 2] = 0;
+					cgram_pixel_data[p2 + 3] = bits & mask ? 0xff : 0;
+				}
+			}
+		}
+
+		// FIXME: unsure how much of this is actually necessary
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, cgram_texture);
+		glTexImage2D(GL_TEXTURE_2D, 0, 4,
+				HD44780_GL_TEXTURE_WIDTH,
+				HD44780_GL_TEXTURE_HEIGHT, 0, GL_RGBA,
+		        GL_UNSIGNED_BYTE,
+		        cgram_pixel_data);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glDisable(GL_TEXTURE_2D);
+
+		hd44780_set_flag(b, HD44780_FLAG_CRAM_DIRTY, 0);
+	}
 
 	glColor3f(1.0f, 1.0f, 1.0f);
 	const uint8_t offset[] = { 0x00, 0x40, 0x00 + 20, 0x40 + 20 };
@@ -145,10 +213,10 @@ hd44780_gl_draw(
 		glPushMatrix();
 		for (int i = 0; i < b->w; i++) {
 			glputchar(b->vram[offset[v] + i], character, text, shadow);
-			glTranslatef(6, 0, 0);
+			glTranslatef(HD44780_CHAR_WIDTH + 1, 0, 0);
 		}
 		glPopMatrix();
-		glTranslatef(0, 8, 0);
+		glTranslatef(0, HD44780_CHAR_HEIGHT + 1, 0);
 	}
 	hd44780_set_flag(b, HD44780_FLAG_DIRTY, 0);
 }
