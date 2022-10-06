@@ -319,6 +319,7 @@ static void setup_ui()
 	glEnable(GL_BLEND);
 
 	hd44780_gl_init();
+	hd44780_setup_mutex_for_gl(&hd44780);
 }
 
 
