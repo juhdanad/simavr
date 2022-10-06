@@ -70,11 +70,11 @@ static struct {
 	key_state_t avr_key_state; // last UI key state change translated to AVR button press/release
 	const char * name; // symbolic name
 } button[5] = {
-	{ .key='8', .ui_key_state = { .count = 0, .state = 1 }, .avr_key_state = { .count = 0, .state = 1 }, .name = "B1" },
-	{ .key='4', .ui_key_state = { .count = 0, .state = 1 }, .avr_key_state = { .count = 0, .state = 1 }, .name = "B2" },
+	{ .key='6', .ui_key_state = { .count = 0, .state = 1 }, .avr_key_state = { .count = 0, .state = 1 }, .name = "B1" },
+	{ .key='8', .ui_key_state = { .count = 0, .state = 1 }, .avr_key_state = { .count = 0, .state = 1 }, .name = "B2" },
 	{ .key='5', .ui_key_state = { .count = 0, .state = 1 }, .avr_key_state = { .count = 0, .state = 1 }, .name = "B3" },
-	{ .key='6', .ui_key_state = { .count = 0, .state = 1 }, .avr_key_state = { .count = 0, .state = 1 }, .name = "B4" },
-	{ .key='2', .ui_key_state = { .count = 0, .state = 1 }, .avr_key_state = { .count = 0, .state = 1 }, .name = "B5" },
+	{ .key='2', .ui_key_state = { .count = 0, .state = 1 }, .avr_key_state = { .count = 0, .state = 1 }, .name = "B4" },
+	{ .key='4', .ui_key_state = { .count = 0, .state = 1 }, .avr_key_state = { .count = 0, .state = 1 }, .name = "B5" },
 };
 static hd44780_t hd44780; // simulated LCD controller
 static avr_t * avr = NULL; // simulated AVR MCU
@@ -292,15 +292,16 @@ static void setup_ui()
 	const int h = ((2 * border - 1) + hd44780.h * (charheight + 1)) * pixsize;
 
 	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
-	glutInitWindowSize(w, h);
+	glutInitWindowSize(h, w);
 	glutCreateWindow("Press 'q' to quit");	/* create window */
 
 	// Set up projection matrix
 	glMatrixMode(GL_PROJECTION); // Select projection matrix
 	glLoadIdentity(); // Start with an identity matrix
-	glOrtho(0, w, 0, h, 0, 10);
+	glOrtho(0, h, 0, w, 0, 10);
 	glScalef(1,-1,1);
-	glTranslatef(0, -1 * h, 0);
+	glTranslatef(h, -1 * w, 0);
+	glRotatef(90,0,0,1);
 
 	glutDisplayFunc(ui_display_cb);		/* set window's display callback */
 	glutTimerFunc(1000 / 24, ui_display_timer_cb, 0);
