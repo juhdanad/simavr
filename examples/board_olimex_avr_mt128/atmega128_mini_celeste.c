@@ -57,7 +57,7 @@ static uint8_t player_death_timer = 0;
 static uint8_t level_row[2][2][2][16] = {{{{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
 										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}},
 										  {{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
-										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}}},
+										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}}},
 										 {{{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
 										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}},
 										  {{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
@@ -180,18 +180,18 @@ void draw_character_dying()
 	if ((frame & 0x1F) >= 0x10)
 	{
 		if (player_x_pixel > 0)
-			player_display_buffer[player_x_pixel - 1] |= 0b010010000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel - 1] ^= 0b010010000000 >> player_y_pixel;
 		if (player_x_pixel < 14)
-			player_display_buffer[player_x_pixel + 2] |= 0b010010000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 2] ^= 0b010010000000 >> player_y_pixel;
 	}
 	else
 	{
 		if (player_x_pixel > 0)
-			player_display_buffer[player_x_pixel - 1] |= 0b001100000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel - 1] ^= 0b001100000000 >> player_y_pixel;
 		if (player_x_pixel < 14)
-			player_display_buffer[player_x_pixel + 2] |= 0b001100000000 >> player_y_pixel;
-		player_display_buffer[player_x_pixel] |= 0b010010000000 >> player_y_pixel;
-		player_display_buffer[player_x_pixel + 1] |= 0b010010000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 2] ^= 0b001100000000 >> player_y_pixel;
+		player_display_buffer[player_x_pixel] ^= 0b010010000000 >> player_y_pixel;
+		player_display_buffer[player_x_pixel + 1] ^= 0b010010000000 >> player_y_pixel;
 	}
 }
 
