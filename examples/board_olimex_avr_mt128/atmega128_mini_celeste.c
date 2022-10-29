@@ -7,11 +7,9 @@ AVR_MCU(F_CPU, "atmega128");
 #include "avr/io.h"
 #include "lcd_helper.h"
 #include "hd44780_cgrom.h"
+#include "mini_celeste_level_data.h"
 
 #define __AVR_ATMEGA128__ 1
-
-#define LEVEL_SEGMENT_HEIGHT 12
-#define LEVEL_SEGMENT_NUMBER 2
 
 static void port_init()
 {
@@ -57,18 +55,6 @@ static uint8_t player_death_timer = 0;
 static uint16_t camera_position = LEVEL_SEGMENT_HEIGHT * (LEVEL_SEGMENT_NUMBER - 1);
 static int8_t camera_remaining_delta = 0;
 static uint8_t camera_delta_timer = 0;
-static uint8_t level_data_characters[2][2][2][LEVEL_SEGMENT_HEIGHT * LEVEL_SEGMENT_NUMBER + 4] = {{{{45, 16, 43, 16, 40, 16, 16, 16, 45, 255, 45, 16, 16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 16, 255, 255},
-																									{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}},
-																								   {{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 26, 255, 255},
-																									{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}}},
-																								  {{{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 26, 255, 255},
-																									{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}},
-																								   {{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 16, 255, 255},
-																									{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 46, 45, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}}}};
-static uint16_t level_data_switch_times[LEVEL_SEGMENT_NUMBER][2] = {{20, 200}, {300, 400}};
-static uint16_t level_data_player_reset_x[LEVEL_SEGMENT_NUMBER] = {0x5000, 0xd000};
-static uint16_t level_data_player_reset_y[LEVEL_SEGMENT_NUMBER] = {0x3000, 0x3000};
-static uint16_t level_data_player_reset_y_char[LEVEL_SEGMENT_NUMBER] = {13, 13};
 static uint8_t *level_row_1 = level_data_characters[0][0][0];
 static uint8_t *level_row_2 = level_data_characters[0][0][1];
 static uint8_t *level_row_alt_1 = level_data_characters[0][1][0];
@@ -78,7 +64,7 @@ static uint16_t player_surrounding_alt[16] = {};
 static uint16_t player_display_buffer[16] = {};
 static uint16_t level_switch_timer = 0;
 static uint8_t level_switch_state = 0;
-static uint16_t level_current_segment = 0;
+static uint16_t level_current_segment = INIT_SEGMENT;
 static uint32_t frame = 0;
 
 void update_player_surrounding()
@@ -621,23 +607,10 @@ int main()
 {
 	port_init();
 	lcd_init();
-
-	lcd_cgram[4 * 8] = 0b00100;
-	lcd_cgram[4 * 8 + 1] = 0b00100;
-	lcd_cgram[4 * 8 + 2] = 0b00100;
-	lcd_cgram[4 * 8 + 3] = 0b00100;
-	lcd_cgram[4 * 8 + 4] = 0b11100;
-	lcd_cgram[4 * 8 + 5] = 0b00100;
-	lcd_cgram[4 * 8 + 6] = 0b00100;
-	lcd_cgram[4 * 8 + 7] = 0b00100;
-	lcd_cgram[5 * 8] = 0b00010;
-	lcd_cgram[5 * 8 + 1] = 0b00010;
-	lcd_cgram[5 * 8 + 2] = 0b00010;
-	lcd_cgram[5 * 8 + 3] = 0b00010;
-	lcd_cgram[5 * 8 + 4] = 0b00010;
-	lcd_cgram[5 * 8 + 5] = 0b00010;
-	lcd_cgram[5 * 8 + 6] = 0b00010;
-	lcd_cgram[5 * 8 + 7] = 0b00010;
+	player_x = level_data_player_reset_x[INIT_SEGMENT];
+	player_y = level_data_player_reset_y[INIT_SEGMENT];
+	player_y_char = level_data_player_reset_y_char[INIT_SEGMENT];
+	camera_position = LEVEL_SEGMENT_HEIGHT * (LEVEL_SEGMENT_NUMBER - 1 - INIT_SEGMENT);
 	while (1)
 	{
 		uint8_t is_alt = (frame & 0x7) >= 0x4 ? 1 : 0;
@@ -739,6 +712,13 @@ int main()
 				player_dash_dir_x = 0;
 				player_dash_dir_y = 0;
 				update_player_surrounding();
+			}
+		}
+		for (uint8_t i = 0; i < 4; i++)
+		{
+			for (uint8_t j = 0; j < 8; j++)
+			{
+				lcd_cgram[i * 8 + j + 32] = level_data_spec_cherecters[level_current_segment][j][i];
 			}
 		}
 		for (unsigned int i = 0; i < 16; ++i)
