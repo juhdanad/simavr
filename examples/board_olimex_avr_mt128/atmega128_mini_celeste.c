@@ -52,6 +52,7 @@ static int16_t player_vel_x_before_dash = 0;
 static uint8_t player_wall_friction = 0;
 static int8_t player_dash_dir_x = 0;
 static int8_t player_dash_dir_y = 0;
+static uint8_t player_death_timer = 0;
 static uint8_t level_row[2][2][2][16] = {{{{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
 										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}},
 										  {{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
@@ -116,58 +117,80 @@ void draw_dash()
 	if (player_dash_dir_x == 1 && player_dash_dir_y == 0)
 	{
 		if (player_x_pixel > 0 && player_dash_frames_in_movement > 10)
-			player_display_buffer[player_x_pixel - 1] ^= 0b001000000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel - 1] |= 0b001000000000 >> player_y_pixel;
 		if (player_x_pixel > 1 && player_dash_frames_in_movement > 20)
-			player_display_buffer[player_x_pixel - 2] ^= 0b000100000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel - 2] |= 0b000100000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == -1 && player_dash_dir_y == 0)
 	{
 		if (player_x_pixel < 14 && player_dash_frames_in_movement > 10)
-			player_display_buffer[player_x_pixel + 2] ^= 0b001000000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 2] |= 0b001000000000 >> player_y_pixel;
 		if (player_x_pixel < 13 && player_dash_frames_in_movement > 20)
-			player_display_buffer[player_x_pixel + 3] ^= 0b000100000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 3] |= 0b000100000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == 0 && player_dash_dir_y == -1)
 	{
 		if (player_dash_frames_in_movement > 10)
-			player_display_buffer[player_x_pixel + 0] ^= 0b000010000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 0] |= 0b000010000000 >> player_y_pixel;
 		if (player_dash_frames_in_movement > 20)
-			player_display_buffer[player_x_pixel + 1] ^= 0b000001000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 1] |= 0b000001000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == 0 && player_dash_dir_y == 1)
 	{
 		if (player_dash_frames_in_movement > 10)
-			player_display_buffer[player_x_pixel + 0] ^= 0b100000000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 0] |= 0b100000000000 >> player_y_pixel;
 		if (player_dash_frames_in_movement > 20)
-			player_display_buffer[player_x_pixel + 1] ^= 0b010000000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 1] |= 0b010000000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == 1 && player_dash_dir_y == -1)
 	{
 		if (player_x_pixel > 0 && player_dash_frames_in_movement > 10)
-			player_display_buffer[player_x_pixel - 1] ^= 0b000010000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel - 1] |= 0b000010000000 >> player_y_pixel;
 		if (player_x_pixel > 1 && player_dash_frames_in_movement > 20)
-			player_display_buffer[player_x_pixel - 2] ^= 0b000001000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel - 2] |= 0b000001000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == 1 && player_dash_dir_y == 1)
 	{
 		if (player_x_pixel > 0 && player_dash_frames_in_movement > 10)
-			player_display_buffer[player_x_pixel - 1] ^= 0b010000000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel - 1] |= 0b010000000000 >> player_y_pixel;
 		if (player_x_pixel > 1 && player_dash_frames_in_movement > 20)
-			player_display_buffer[player_x_pixel - 2] ^= 0b100000000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel - 2] |= 0b100000000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == -1 && player_dash_dir_y == -1)
 	{
 		if (player_x_pixel < 14 && player_dash_frames_in_movement > 10)
-			player_display_buffer[player_x_pixel + 2] ^= 0b000010000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 2] |= 0b000010000000 >> player_y_pixel;
 		if (player_x_pixel < 13 && player_dash_frames_in_movement > 20)
-			player_display_buffer[player_x_pixel + 3] ^= 0b000001000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 3] |= 0b000001000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == -1 && player_dash_dir_y == 1)
 	{
 		if (player_x_pixel < 14 && player_dash_frames_in_movement > 10)
-			player_display_buffer[player_x_pixel + 2] ^= 0b010000000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 2] |= 0b010000000000 >> player_y_pixel;
 		if (player_x_pixel < 13 && player_dash_frames_in_movement > 20)
-			player_display_buffer[player_x_pixel + 3] ^= 0b100000000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 3] |= 0b100000000000 >> player_y_pixel;
+	}
+}
+
+void draw_character_dying()
+{
+	uint8_t player_x_pixel = player_x >> 12;
+	uint8_t player_y_pixel = player_y >> 12;
+	if ((frame & 0x1F) >= 0x10)
+	{
+		if (player_x_pixel > 0)
+			player_display_buffer[player_x_pixel - 1] |= 0b010010000000 >> player_y_pixel;
+		if (player_x_pixel < 14)
+			player_display_buffer[player_x_pixel + 2] |= 0b010010000000 >> player_y_pixel;
+	}
+	else
+	{
+		if (player_x_pixel > 0)
+			player_display_buffer[player_x_pixel - 1] |= 0b001100000000 >> player_y_pixel;
+		if (player_x_pixel < 14)
+			player_display_buffer[player_x_pixel + 2] |= 0b001100000000 >> player_y_pixel;
+		player_display_buffer[player_x_pixel] |= 0b010010000000 >> player_y_pixel;
+		player_display_buffer[player_x_pixel + 1] |= 0b010010000000 >> player_y_pixel;
 	}
 }
 
@@ -180,15 +203,22 @@ void draw_character()
 	}
 	uint8_t player_x_pixel = player_x >> 12;
 	uint8_t player_y_pixel = player_y >> 12;
-	if (player_dash_remaining || (frame & 0x8) >= 0x4)
+	if (player_death_timer > 0)
 	{
-		player_display_buffer[player_x_pixel] ^= 0b1000000000 >> player_y_pixel;
-		player_display_buffer[player_x_pixel + 1] ^= 0b0100000000 >> player_y_pixel;
+		draw_character_dying();
 	}
-	if (player_dash_remaining || (frame & 0x8) < 0x4)
+	else
 	{
-		player_display_buffer[player_x_pixel] ^= 0b0100000000 >> player_y_pixel;
-		player_display_buffer[player_x_pixel + 1] ^= 0b1000000000 >> player_y_pixel;
+		if (player_dash_remaining || (frame & 0x8) >= 0x4)
+		{
+			player_display_buffer[player_x_pixel] |= 0b1000000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 1] |= 0b0100000000 >> player_y_pixel;
+		}
+		if (player_dash_remaining || (frame & 0x8) < 0x4)
+		{
+			player_display_buffer[player_x_pixel] |= 0b0100000000 >> player_y_pixel;
+			player_display_buffer[player_x_pixel + 1] |= 0b1000000000 >> player_y_pixel;
+		}
 	}
 	draw_dash();
 	for (uint8_t i = 0; i < 8; i++)
@@ -597,34 +627,60 @@ int main()
 		level_row_2 = level_row[frame_num][1 - is_alt][1];
 		level_row_alt_1 = level_row[frame_num][is_alt][0];
 		level_row_alt_2 = level_row[frame_num][is_alt][1];
-		floor_detection();
-		process_controls();
-		if (player_dash_timer == 0)
+		if (player_death_timer == 0)
 		{
-			if (player_vel_y >= 0)
+			floor_detection();
+			process_controls();
+			if (player_dash_timer == 0)
 			{
-				player_jump_frames = 0;
+				if (player_vel_y >= 0)
+				{
+					player_jump_frames = 0;
+				}
+				if (player_jump_frames > 0)
+				{
+					player_jump_frames--;
+				}
+				if (!(player_on_floor && (player_y & 0xFFF) == 0xFFF))
+				{
+					player_vel_y += (player_jump_frames > 0) ? 5 : 20;
+				}
+				friction();
 			}
-			if (player_jump_frames > 0)
+			move_with_speed();
+			update_player_surrounding();
+			fix_player_position();
+			if (is_player_dead())
 			{
-				player_jump_frames--;
+				player_death_timer = 200;
 			}
-			if (!(player_on_floor && (player_y & 0xFFF) == 0xFFF))
-			{
-				player_vel_y += (player_jump_frames > 0) ? 5 : 20;
-			}
-			friction();
 		}
-		move_with_speed();
-		update_player_surrounding();
-		fix_player_position();
-		if (is_player_dead())
+		else
 		{
-			player_x = player_reset_x;
-			player_y = player_reset_y;
-			player_vel_x = 0;
-			player_vel_y = 0;
-			player_y_char = player_reset_y_char;
+			player_death_timer--;
+			if (player_death_timer == 70)
+			{
+				player_x = player_reset_x;
+				player_y = player_reset_y;
+				player_vel_x = 0;
+				player_vel_y = 0;
+				player_y_char = player_reset_y_char;
+				player_jump_frames = 0;
+				player_on_floor = 0;
+				player_on_e_wall = 0;
+				player_on_w_wall = 0;
+				player_jump_buffer = 0;
+				player_dash_remaining = 1;
+				player_dash_timer = 0;
+				player_dash_frames_in_movement = 0;
+				player_dash_input_timer = 0;
+				player_dash_default_x_direction = 1;
+				player_vel_x_before_dash = 0;
+				player_wall_friction = 0;
+				player_dash_dir_x = 0;
+				player_dash_dir_y = 0;
+				update_player_surrounding();
+			}
 		}
 		for (unsigned int i = 0; i < 16; ++i)
 		{
@@ -635,6 +691,21 @@ int main()
 			lcd_row_2[i] = level_row_2[i];
 		}
 		draw_character();
+		if (player_death_timer > 0)
+		{
+			if (player_death_timer >= 60 && player_death_timer < 140)
+				for (uint8_t i = 0; i < 16; i += 2)
+					lcd_row_1[i] = 255;
+			if (player_death_timer >= 40 && player_death_timer < 120)
+				for (uint8_t i = 0; i < 16; i += 2)
+					lcd_row_2[i] = 255;
+			if (player_death_timer >= 20 && player_death_timer < 100)
+				for (uint8_t i = 1; i < 16; i += 2)
+					lcd_row_1[i] = 255;
+			if (player_death_timer < 80)
+				for (uint8_t i = 1; i < 16; i += 2)
+					lcd_row_2[i] = 255;
+		}
 		// hide character before modifying cgram significantly
 		if (player_y_char_old != player_y_char)
 		{
