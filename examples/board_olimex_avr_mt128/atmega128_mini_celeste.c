@@ -39,14 +39,27 @@ static uint8_t player_y_char = 14;
 static uint8_t player_y_char_old = 14;
 static uint8_t player_jump_frames = 0;
 static uint8_t player_on_floor = 0;
-static uint8_t level_row[2][2][2][16] = {{{{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 40, 16, 16, 16, 255},
-										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 16, 40, 4, 255}},
-										  {{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 40, 16, 16, 16, 255},
-										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 16, 40, 5, 255}}},
-										 {{{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 40, 16, 16, 16, 255},
-										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 16, 40, 4, 255}},
-										  {{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 40, 16, 16, 16, 255},
-										   {16, 16, 46, 45, 44, 16, 42, 16, 16, 40, 16, 16, 16, 40, 5, 255}}}};
+static uint8_t player_on_e_wall = 0;
+static uint8_t player_on_w_wall = 0;
+static uint8_t player_jump_button_down = 0;
+static uint8_t player_jump_buffer = 0;
+static uint8_t player_dash_remaining = 1;
+static uint8_t player_dash_timer = 0;
+static uint8_t player_dash_frames_in_movement = 0;
+static uint8_t player_dash_input_timer = 0;
+static int8_t player_dash_default_x_direction = 1;
+static int16_t player_vel_x_before_dash = 0;
+static uint8_t player_wall_friction = 0;
+static int8_t player_dash_dir_x = 0;
+static int8_t player_dash_dir_y = 0;
+static uint8_t level_row[2][2][2][16] = {{{{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
+										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}},
+										  {{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
+										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}}},
+										 {{{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
+										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}},
+										  {{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
+										   {16, 16, 46, 45, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}}}};
 static uint8_t *level_row_1 = level_row[0][0][0];
 static uint8_t *level_row_2 = level_row[0][0][1];
 static uint8_t *level_row_alt_1 = level_row[0][1][0];
@@ -94,6 +107,70 @@ void update_player_surrounding()
 		player_surrounding_alt[8 + i] |= current_char[i];
 }
 
+void draw_dash()
+{
+	if (player_dash_timer == 0)
+		return;
+	uint8_t player_x_pixel = player_x >> 12;
+	uint8_t player_y_pixel = player_y >> 12;
+	if (player_dash_dir_x == 1 && player_dash_dir_y == 0)
+	{
+		if (player_x_pixel > 0 && player_dash_frames_in_movement > 10)
+			player_display_buffer[player_x_pixel - 1] ^= 0b001000000000 >> player_y_pixel;
+		if (player_x_pixel > 1 && player_dash_frames_in_movement > 20)
+			player_display_buffer[player_x_pixel - 2] ^= 0b000100000000 >> player_y_pixel;
+	}
+	else if (player_dash_dir_x == -1 && player_dash_dir_y == 0)
+	{
+		if (player_x_pixel < 14 && player_dash_frames_in_movement > 10)
+			player_display_buffer[player_x_pixel + 2] ^= 0b001000000000 >> player_y_pixel;
+		if (player_x_pixel < 13 && player_dash_frames_in_movement > 20)
+			player_display_buffer[player_x_pixel + 3] ^= 0b000100000000 >> player_y_pixel;
+	}
+	else if (player_dash_dir_x == 0 && player_dash_dir_y == -1)
+	{
+		if (player_dash_frames_in_movement > 10)
+			player_display_buffer[player_x_pixel + 0] ^= 0b000010000000 >> player_y_pixel;
+		if (player_dash_frames_in_movement > 20)
+			player_display_buffer[player_x_pixel + 1] ^= 0b000001000000 >> player_y_pixel;
+	}
+	else if (player_dash_dir_x == 0 && player_dash_dir_y == 1)
+	{
+		if (player_dash_frames_in_movement > 10)
+			player_display_buffer[player_x_pixel + 0] ^= 0b100000000000 >> player_y_pixel;
+		if (player_dash_frames_in_movement > 20)
+			player_display_buffer[player_x_pixel + 1] ^= 0b010000000000 >> player_y_pixel;
+	}
+	else if (player_dash_dir_x == 1 && player_dash_dir_y == -1)
+	{
+		if (player_x_pixel > 0 && player_dash_frames_in_movement > 10)
+			player_display_buffer[player_x_pixel - 1] ^= 0b000010000000 >> player_y_pixel;
+		if (player_x_pixel > 1 && player_dash_frames_in_movement > 20)
+			player_display_buffer[player_x_pixel - 2] ^= 0b000001000000 >> player_y_pixel;
+	}
+	else if (player_dash_dir_x == 1 && player_dash_dir_y == 1)
+	{
+		if (player_x_pixel > 0 && player_dash_frames_in_movement > 10)
+			player_display_buffer[player_x_pixel - 1] ^= 0b010000000000 >> player_y_pixel;
+		if (player_x_pixel > 1 && player_dash_frames_in_movement > 20)
+			player_display_buffer[player_x_pixel - 2] ^= 0b100000000000 >> player_y_pixel;
+	}
+	else if (player_dash_dir_x == -1 && player_dash_dir_y == -1)
+	{
+		if (player_x_pixel < 14 && player_dash_frames_in_movement > 10)
+			player_display_buffer[player_x_pixel + 2] ^= 0b000010000000 >> player_y_pixel;
+		if (player_x_pixel < 13 && player_dash_frames_in_movement > 20)
+			player_display_buffer[player_x_pixel + 3] ^= 0b000001000000 >> player_y_pixel;
+	}
+	else if (player_dash_dir_x == -1 && player_dash_dir_y == 1)
+	{
+		if (player_x_pixel < 14 && player_dash_frames_in_movement > 10)
+			player_display_buffer[player_x_pixel + 2] ^= 0b010000000000 >> player_y_pixel;
+		if (player_x_pixel < 13 && player_dash_frames_in_movement > 20)
+			player_display_buffer[player_x_pixel + 3] ^= 0b100000000000 >> player_y_pixel;
+	}
+}
+
 void draw_character()
 {
 	update_player_surrounding();
@@ -103,8 +180,17 @@ void draw_character()
 	}
 	uint8_t player_x_pixel = player_x >> 12;
 	uint8_t player_y_pixel = player_y >> 12;
-	player_display_buffer[player_x_pixel] ^= 0b1100000000 >> player_y_pixel;
-	player_display_buffer[player_x_pixel + 1] ^= 0b1100000000 >> player_y_pixel;
+	if (player_dash_remaining || (frame & 0x8) >= 0x4)
+	{
+		player_display_buffer[player_x_pixel] ^= 0b1000000000 >> player_y_pixel;
+		player_display_buffer[player_x_pixel + 1] ^= 0b0100000000 >> player_y_pixel;
+	}
+	if (player_dash_remaining || (frame & 0x8) < 0x4)
+	{
+		player_display_buffer[player_x_pixel] ^= 0b0100000000 >> player_y_pixel;
+		player_display_buffer[player_x_pixel + 1] ^= 0b1000000000 >> player_y_pixel;
+	}
+	draw_dash();
 	for (uint8_t i = 0; i < 8; i++)
 	{
 		lcd_cgram[i] = player_display_buffer[i] >> 5;
@@ -122,19 +208,57 @@ void process_controls()
 {
 	if (!(PINA & 0b00000001))
 	{
-		player_vel_x -= 15;
+		player_vel_x -= player_on_floor ? 30 : 15;
+		player_dash_default_x_direction = -1;
 	}
 	if (!(PINA & 0b00000010))
 	{
+		if (player_jump_button_down == 0)
+		{
+			player_jump_buffer = 6;
+		}
+		player_jump_button_down = 1;
+	}
+	else
+	{
+		player_jump_button_down = 0;
+		player_jump_frames = 0;
+	}
+	if (player_jump_buffer > 0)
+	{
+		player_jump_buffer--;
 		if (player_on_floor)
 		{
 			player_vel_y = -800;
 			player_jump_frames = 100;
+			player_jump_buffer = 0;
+			player_dash_timer = 0;
 		}
-	}
-	else
-	{
-		player_jump_frames = 0;
+		else if (!player_on_e_wall && player_on_w_wall)
+		{
+			player_vel_y = (player_dash_timer > 0 && player_dash_dir_x == 0 && player_dash_dir_y == -1) ? -1200 : -400;
+			player_vel_x = 800;
+			player_dash_default_x_direction = 1;
+			player_jump_frames = 50;
+			player_jump_buffer = 0;
+			player_dash_timer = 0;
+		}
+		else if (player_on_e_wall && !player_on_w_wall)
+		{
+			player_vel_y = (player_dash_timer > 0 && player_dash_dir_x == 0 && player_dash_dir_y == -1) ? -1200 : -400;
+			player_vel_x = -800;
+			player_dash_default_x_direction = -1;
+			player_jump_frames = 50;
+			player_jump_buffer = 0;
+			player_dash_timer = 0;
+		}
+		else if (player_on_e_wall && player_on_w_wall)
+		{
+			player_vel_y = -400;
+			player_jump_frames = 50;
+			player_jump_buffer = 0;
+			player_dash_timer = 0;
+		}
 	}
 	if (!(PINA & 0b00001000))
 	{
@@ -142,36 +266,88 @@ void process_controls()
 	}
 	if (!(PINA & 0b00010000))
 	{
-		player_vel_x += 15;
+		player_vel_x += player_on_floor ? 30 : 15;
+		player_dash_default_x_direction = 1;
 	}
+	if (!(PINA & 0b00000100) && player_dash_remaining > 0)
+	{
+		player_dash_remaining = 0;
+		player_dash_timer = 80;
+		player_dash_input_timer = 20;
+		player_dash_frames_in_movement = 0;
+		player_dash_dir_x = 0;
+		player_dash_dir_y = 0;
+		player_vel_x_before_dash = player_vel_x;
+	}
+	if (player_dash_timer > 0)
+	{
+		player_dash_timer--;
+		if (player_dash_input_timer > 0)
+		{
+			player_dash_input_timer--;
+			// listen for input
+			if (player_dash_dir_x == 0)
+			{
+				if (!(PINA & 0b00000001))
+					player_dash_dir_x--;
+				if (!(PINA & 0b00010000))
+					player_dash_dir_x++;
+			}
+			if (player_dash_dir_y == 0)
+			{
+				if (!(PINA & 0b00000010))
+					player_dash_dir_y--;
+				if (!(PINA & 0b00001000))
+					player_dash_dir_y++;
+			}
+			player_vel_x = 0;
+			player_vel_y = 0;
+		}
+		else
+		{
+			player_dash_frames_in_movement++;
+			if (player_dash_dir_x == 0 && player_dash_dir_y == 0)
+			{
+				player_dash_dir_x = player_dash_default_x_direction;
+				player_dash_dir_y = 0;
+			}
+			if (player_dash_dir_x != 0 && player_dash_dir_y == 1)
+			{
+				player_vel_x = 400 * player_dash_dir_x + player_vel_x_before_dash;
+				player_vel_y = 400 * player_dash_dir_y;
+			}
+			else if (player_dash_dir_x != 0 && player_dash_dir_y == -1)
+			{
+				player_vel_x = 400 * player_dash_dir_x;
+				player_vel_y = 400 * player_dash_dir_y;
+			}
+			else
+			{
+				player_vel_x = 600 * player_dash_dir_x;
+				player_vel_y = 600 * player_dash_dir_y;
+			}
+		}
+	}
+	if (player_on_floor && player_dash_timer < 10)
+		player_dash_remaining = 1;
 }
 
 void friction()
 {
-	if (player_vel_x > 5)
-	{
-		player_vel_x -= 5;
-	}
-	else if (player_vel_x > -5)
-	{
-		player_vel_x = 0;
-	}
-	else
-	{
-		player_vel_x += 5;
-	}
-	if (player_vel_y > 5)
-	{
-		player_vel_y -= 5;
-	}
-	else if (player_vel_y > -5)
-	{
-		player_vel_y = 0;
-	}
-	else
-	{
-		player_vel_y += 5;
-	}
+	int16_t vel_x_reduction = player_on_floor ? player_vel_x >> 4 : player_vel_x >> 6;
+	if (vel_x_reduction != 0)
+		player_vel_x -= vel_x_reduction;
+	else if (player_vel_x > 0)
+		player_vel_x--;
+	else if (player_vel_x < 0)
+		player_vel_x++;
+	int16_t vel_y_reduction = (player_wall_friction && player_vel_y > 0) ? player_vel_y >> 3 : player_vel_y >> 7;
+	if (vel_y_reduction != 0)
+		player_vel_y -= vel_y_reduction;
+	else if (player_vel_y > 0)
+		player_vel_y--;
+	else if (player_vel_y < 0)
+		player_vel_y++;
 }
 
 void move_with_speed()
@@ -234,6 +410,7 @@ void fix_player_position_e()
 	if (player_vel_x < 0)
 	{
 		player_vel_x = 0;
+		player_wall_friction = 1;
 	}
 }
 
@@ -244,6 +421,7 @@ void fix_player_position_w()
 	if (player_vel_x > 0)
 	{
 		player_vel_x = 0;
+		player_wall_friction = 1;
 	}
 }
 
@@ -251,8 +429,24 @@ void floor_detection()
 {
 	uint8_t player_x_pixel = player_x >> 12;
 	uint8_t player_y_pixel = player_y >> 12;
-	player_on_floor = (((player_surrounding[player_x_pixel] & player_surrounding_alt[player_x_pixel]) << (player_y_pixel)) & 0b10000000) ||
-					  (((player_surrounding[player_x_pixel + 1] & player_surrounding_alt[player_x_pixel + 1]) << (player_y_pixel)) & 0b10000000);
+	player_on_floor = (((player_surrounding[player_x_pixel] & player_surrounding_alt[player_x_pixel]) << player_y_pixel) & 0b10000000) ||
+					  (((player_surrounding[player_x_pixel + 1] & player_surrounding_alt[player_x_pixel + 1]) << player_y_pixel) & 0b10000000);
+	if (player_x_pixel > 0)
+	{
+		player_on_w_wall = (player_surrounding[player_x_pixel - 1] & player_surrounding_alt[player_x_pixel - 1]) & (0b1100000000 >> player_y_pixel);
+	}
+	else
+	{
+		player_on_w_wall = 0;
+	}
+	if (player_x_pixel < 14)
+	{
+		player_on_e_wall = (player_surrounding[player_x_pixel + 2] & player_surrounding_alt[player_x_pixel + 2]) & (0b1100000000 >> player_y_pixel);
+	}
+	else
+	{
+		player_on_e_wall = 0;
+	}
 }
 
 uint8_t is_player_dead()
@@ -266,6 +460,7 @@ uint8_t is_player_dead()
 
 void fix_player_position()
 {
+	player_wall_friction = 0;
 	uint8_t player_x_pixel = player_x >> 12;
 	uint8_t player_y_pixel_red = (player_y >> 12) - 1;
 	uint8_t player_collision0 = 0b1111;
@@ -285,22 +480,30 @@ void fix_player_position()
 	{
 		return;
 	}
+	uint8_t can_translate_e_not_extremum = ((player_x & 0xFFF) != 0x000);
+	uint8_t can_translate_w_not_extremum = ((player_x & 0xFFF) != 0xFFF);
 	uint8_t can_translate_n = !(player_collision1 & 0b1100) &&
 							  !(player_collision2 & 0b1100);
 	uint8_t can_translate_s = !(player_collision1 & 0b0011) &&
 							  !(player_collision2 & 0b0011);
 	uint8_t can_translate_e = !(player_collision2 & 0b0110) &&
-							  !(player_collision3 & 0b0110);
+							  !(player_collision3 & 0b0110) &&
+							  can_translate_e_not_extremum;
 	uint8_t can_translate_ne = !(player_collision2 & 0b1100) &&
-							   !(player_collision3 & 0b1100);
+							   !(player_collision3 & 0b1100) &&
+							   can_translate_e_not_extremum;
 	uint8_t can_translate_se = !(player_collision2 & 0b0011) &&
-							   !(player_collision3 & 0b0011);
+							   !(player_collision3 & 0b0011) &&
+							   can_translate_e_not_extremum;
 	uint8_t can_translate_w = !(player_collision0 & 0b0110) &&
-							  !(player_collision1 & 0b0110);
+							  !(player_collision1 & 0b0110) &&
+							  can_translate_w_not_extremum;
 	uint8_t can_translate_nw = !(player_collision0 & 0b1100) &&
-							   !(player_collision1 & 0b1100);
+							   !(player_collision1 & 0b1100) &&
+							   can_translate_w_not_extremum;
 	uint8_t can_translate_sw = !(player_collision0 & 0b0011) &&
-							   !(player_collision1 & 0b0011);
+							   !(player_collision1 & 0b0011) &&
+							   can_translate_w_not_extremum;
 	if (can_translate_n)
 	{
 		fix_player_position_n();
@@ -396,23 +599,22 @@ int main()
 		level_row_alt_2 = level_row[frame_num][is_alt][1];
 		floor_detection();
 		process_controls();
-		if (player_vel_y >= 0)
+		if (player_dash_timer == 0)
 		{
-			player_jump_frames = 0;
-		}
-		if (!player_on_floor)
-		{
+			if (player_vel_y >= 0)
+			{
+				player_jump_frames = 0;
+			}
 			if (player_jump_frames > 0)
 			{
-				player_vel_y += 5;
 				player_jump_frames--;
 			}
-			else
+			if (!(player_on_floor && (player_y & 0xFFF) == 0xFFF))
 			{
-				player_vel_y += 20;
+				player_vel_y += (player_jump_frames > 0) ? 5 : 20;
 			}
+			friction();
 		}
-		friction();
 		move_with_speed();
 		update_player_surrounding();
 		fix_player_position();
