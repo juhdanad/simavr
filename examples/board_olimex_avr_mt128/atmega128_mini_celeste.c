@@ -10,6 +10,9 @@ AVR_MCU(F_CPU, "atmega128");
 
 #define __AVR_ATMEGA128__ 1
 
+#define LEVEL_SEGMENT_HEIGHT 12
+#define LEVEL_SEGMENT_NUMBER 2
+
 static void port_init()
 {
 	PORTA = 0b00011111;
@@ -28,15 +31,12 @@ static void port_init()
 	DDRG = 0b00000000;
 }
 
-static uint16_t player_reset_x = 0x4000;
-static uint16_t player_reset_y = 0x4000;
-static uint16_t player_reset_y_char = 14;
-static uint16_t player_x = 0x4000;
-static uint16_t player_y = 0x4000;
+static uint16_t player_x = 0x3000;
+static uint16_t player_y = 0x3000;
 static int16_t player_vel_x = 0;
 static int16_t player_vel_y = 0;
-static uint8_t player_y_char = 14;
-static uint8_t player_y_char_old = 14;
+static uint8_t player_y_char = 13;
+static uint8_t player_y_char_old = 13;
 static uint8_t player_jump_frames = 0;
 static uint8_t player_on_floor = 0;
 static uint8_t player_on_e_wall = 0;
@@ -54,21 +54,31 @@ static uint8_t player_wall_friction = 0;
 static int8_t player_dash_dir_x = 0;
 static int8_t player_dash_dir_y = 0;
 static uint8_t player_death_timer = 0;
-static uint8_t level_row[2][2][2][16] = {{{{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
-										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}},
-										  {{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
-										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}}},
-										 {{{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
-										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}},
-										  {{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
-										   {16, 16, 46, 45, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}}}};
-static uint8_t *level_row_1 = level_row[0][0][0];
-static uint8_t *level_row_2 = level_row[0][0][1];
-static uint8_t *level_row_alt_1 = level_row[0][1][0];
-static uint8_t *level_row_alt_2 = level_row[0][1][1];
+static uint16_t camera_position = LEVEL_SEGMENT_HEIGHT * (LEVEL_SEGMENT_NUMBER - 1);
+static int8_t camera_remaining_delta = 0;
+static uint8_t camera_delta_timer = 0;
+static uint8_t level_data_characters[2][2][2][LEVEL_SEGMENT_HEIGHT * LEVEL_SEGMENT_NUMBER + 4] = {{{{45, 16, 43, 16, 40, 16, 16, 16, 45, 255, 45, 16, 16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 16, 255, 255},
+																									{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}},
+																								   {{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 26, 255, 255},
+																									{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}}},
+																								  {{{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 26, 255, 255},
+																									{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}},
+																								   {{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 16, 255, 255},
+																									{45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 16, 16, 46, 45, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}}}};
+static uint16_t level_data_switch_times[LEVEL_SEGMENT_NUMBER][2] = {{20, 200}, {300, 400}};
+static uint16_t level_data_player_reset_x[LEVEL_SEGMENT_NUMBER] = {0x5000, 0xd000};
+static uint16_t level_data_player_reset_y[LEVEL_SEGMENT_NUMBER] = {0x3000, 0x3000};
+static uint16_t level_data_player_reset_y_char[LEVEL_SEGMENT_NUMBER] = {13, 13};
+static uint8_t *level_row_1 = level_data_characters[0][0][0];
+static uint8_t *level_row_2 = level_data_characters[0][0][1];
+static uint8_t *level_row_alt_1 = level_data_characters[0][1][0];
+static uint8_t *level_row_alt_2 = level_data_characters[0][1][1];
 static uint16_t player_surrounding[16] = {};
 static uint16_t player_surrounding_alt[16] = {};
 static uint16_t player_display_buffer[16] = {};
+static uint16_t level_switch_timer = 0;
+static uint8_t level_switch_state = 0;
+static uint16_t level_current_segment = 0;
 static uint32_t frame = 0;
 
 void update_player_surrounding()
@@ -631,12 +641,17 @@ int main()
 	while (1)
 	{
 		uint8_t is_alt = (frame & 0x7) >= 0x4 ? 1 : 0;
-		uint8_t frame_num = (frame & 0xFF) >= 0x80 ? 1 : 0;
-		level_row_1 = level_row[frame_num][1 - is_alt][0];
-		level_row_2 = level_row[frame_num][1 - is_alt][1];
-		level_row_alt_1 = level_row[frame_num][is_alt][0];
-		level_row_alt_2 = level_row[frame_num][is_alt][1];
-		if (player_death_timer == 0)
+		level_switch_timer++;
+		if (level_switch_timer >= level_data_switch_times[level_current_segment][level_switch_state])
+		{
+			level_switch_state = 1 - level_switch_state;
+			level_switch_timer = 0;
+		}
+		level_row_1 = level_data_characters[level_switch_state][1 - is_alt][0] + camera_position;
+		level_row_2 = level_data_characters[level_switch_state][1 - is_alt][1] + camera_position;
+		level_row_alt_1 = level_data_characters[level_switch_state][is_alt][0] + camera_position;
+		level_row_alt_2 = level_data_characters[level_switch_state][is_alt][1] + camera_position;
+		if (player_death_timer == 0 && camera_remaining_delta == 0)
 		{
 			floor_detection();
 			process_controls();
@@ -663,17 +678,52 @@ int main()
 			{
 				player_death_timer = 200;
 			}
+			if (player_y_char == 0)
+			{
+				camera_remaining_delta = -LEVEL_SEGMENT_HEIGHT;
+				camera_delta_timer = 0;
+				level_current_segment++;
+			}
+			else if (player_y_char >= 14)
+			{
+				camera_remaining_delta = LEVEL_SEGMENT_HEIGHT;
+				camera_delta_timer = 0;
+				level_current_segment--;
+			}
 		}
-		else
+		else if (camera_remaining_delta != 0)
+		{
+			if (camera_delta_timer == 0)
+			{
+				camera_delta_timer = 5;
+				if (camera_remaining_delta > 0)
+				{
+					camera_remaining_delta--;
+					camera_position++;
+					player_y_char--;
+				}
+				else
+				{
+					camera_remaining_delta++;
+					camera_position--;
+					player_y_char++;
+				}
+			}
+			else
+			{
+				camera_delta_timer--;
+			}
+		}
+		else if (player_death_timer > 0)
 		{
 			player_death_timer--;
 			if (player_death_timer == 70)
 			{
-				player_x = player_reset_x;
-				player_y = player_reset_y;
+				player_x = level_data_player_reset_x[level_current_segment];
+				player_y = level_data_player_reset_y[level_current_segment];
 				player_vel_x = 0;
 				player_vel_y = 0;
-				player_y_char = player_reset_y_char;
+				player_y_char = level_data_player_reset_y_char[level_current_segment];
 				player_jump_frames = 0;
 				player_on_floor = 0;
 				player_on_e_wall = 0;
