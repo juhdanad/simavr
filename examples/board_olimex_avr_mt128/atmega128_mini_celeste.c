@@ -611,6 +611,9 @@ int main()
 	player_y = level_data_player_reset_y[INIT_SEGMENT];
 	player_y_char = level_data_player_reset_y_char[INIT_SEGMENT];
 	camera_position = LEVEL_SEGMENT_HEIGHT * (LEVEL_SEGMENT_NUMBER - 1 - INIT_SEGMENT);
+	for (uint8_t i = 0; i < 4; i++)
+		for (uint8_t j = 0; j < 8; j++)
+			lcd_cgram[i * 8 + j + 32] = level_data_spec_cherecters[level_current_segment][j][i];
 	while (1)
 	{
 		uint8_t is_alt = (frame & 0x7) >= 0x4 ? 1 : 0;
@@ -715,12 +718,8 @@ int main()
 			}
 		}
 		for (uint8_t i = 0; i < 4; i++)
-		{
 			for (uint8_t j = 0; j < 8; j++)
-			{
 				lcd_cgram[i * 8 + j + 32] = level_data_spec_cherecters[level_current_segment][j][i];
-			}
-		}
 		for (unsigned int i = 0; i < 16; ++i)
 		{
 			lcd_row_1[i] = level_row_1[i];
