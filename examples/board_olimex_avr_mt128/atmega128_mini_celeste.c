@@ -42,6 +42,7 @@ static uint8_t player_on_floor = 0;
 static uint8_t player_on_e_wall = 0;
 static uint8_t player_on_w_wall = 0;
 static uint8_t player_jump_button_down = 0;
+static uint8_t player_dash_button_down = 0;
 static uint8_t player_jump_buffer = 0;
 static uint8_t player_dash_remaining = 1;
 static uint8_t player_dash_timer = 0;
@@ -54,9 +55,9 @@ static int8_t player_dash_dir_x = 0;
 static int8_t player_dash_dir_y = 0;
 static uint8_t player_death_timer = 0;
 static uint8_t level_row[2][2][2][16] = {{{{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
-										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}},
+										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}},
 										  {{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
-										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}}},
+										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 255, 255}}},
 										 {{{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
 										   {16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 16, 95, 95, 95, 255}},
 										  {{16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 45, 45, 45, 16, 255},
@@ -299,15 +300,23 @@ void process_controls()
 		player_vel_x += player_on_floor ? 30 : 15;
 		player_dash_default_x_direction = 1;
 	}
-	if (!(PINA & 0b00000100) && player_dash_remaining > 0)
+	if (!(PINA & 0b00000100))
 	{
-		player_dash_remaining = 0;
-		player_dash_timer = 80;
-		player_dash_input_timer = 20;
-		player_dash_frames_in_movement = 0;
-		player_dash_dir_x = 0;
-		player_dash_dir_y = 0;
-		player_vel_x_before_dash = player_vel_x;
+		if (!player_dash_button_down && player_dash_remaining > 0)
+		{
+			player_dash_remaining = 0;
+			player_dash_timer = 80;
+			player_dash_input_timer = 20;
+			player_dash_frames_in_movement = 0;
+			player_dash_dir_x = 0;
+			player_dash_dir_y = 0;
+			player_vel_x_before_dash = player_vel_x;
+		}
+		player_dash_button_down = 1;
+	}
+	else
+	{
+		player_dash_button_down = 0;
 	}
 	if (player_dash_timer > 0)
 	{
