@@ -12,20 +12,9 @@ AVR_MCU(F_CPU, "atmega128");
 #include "lcd_helper.h"
 #include "hd44780_cgrom.h"
 #include "mini_celeste_level_data.h"
+#include "gameplay_constants.h"
 
-#define GRAVITY 80
-#define GRAVITY_REDUCED 20
 #define PLAYER_MAX_VELOCITY 0xFF0
-#define PLAYER_JUMP_VELOCITY 1600
-#define PLAYER_WALL_JUMP_VELOCITY_X 800
-#define PLAYER_WALL_JUMP_VELOCITY_Y 400
-#define PLAYER_WALL_JUMP_VELOCITY_Y_BOOSTED 1200
-#define PLAYER_WALK_VELOCITY 100
-#define PLAYER_AIR_VELOCITY_X 50
-#define PLAYER_AIR_VELOCITY_Y 50
-
-#define PLAYER_JUMP_FRAMES_MAX 40
-#define PLAYER_WALL_JUMP_FRAMES_MAX 20
 
 static void port_init()
 {
@@ -258,7 +247,7 @@ void process_controls() //
 	{
 		if (player_jump_button_down == 0)
 		{
-			player_jump_buffer = 6;
+			player_jump_buffer = PLAYER_JUMP_BUFFER_FRAMES;
 		}
 		player_jump_button_down = 1;
 	}
@@ -317,8 +306,8 @@ void process_controls() //
 		if (!player_dash_button_down && player_dash_remaining > 0)
 		{
 			player_dash_remaining = 0;
-			player_dash_timer = 80;
-			player_dash_input_timer = 20;
+			player_dash_timer = PLAYER_DASH_FRAMES;
+			player_dash_input_timer = PLAYER_DASH_INPUT_FRAMES;
 			player_dash_frames_in_movement = 0;
 			player_dash_dir_x = 0;
 			player_dash_dir_y = 0;
@@ -364,28 +353,28 @@ void process_controls() //
 			}
 			if (player_dash_dir_x != 0 && player_dash_dir_y == 1)
 			{
-				player_vel_x = 400 * player_dash_dir_x + player_vel_x_before_dash;
-				player_vel_y = 400 * player_dash_dir_y;
+				player_vel_x = PLAYER_DASH_DIAGONAL_VELOCITY * player_dash_dir_x + player_vel_x_before_dash;
+				player_vel_y = PLAYER_DASH_DIAGONAL_VELOCITY * player_dash_dir_y;
 			}
 			else if (player_dash_dir_x != 0 && player_dash_dir_y == -1)
 			{
-				player_vel_x = 400 * player_dash_dir_x;
-				player_vel_y = 400 * player_dash_dir_y;
+				player_vel_x = PLAYER_DASH_DIAGONAL_VELOCITY * player_dash_dir_x;
+				player_vel_y = PLAYER_DASH_DIAGONAL_VELOCITY * player_dash_dir_y;
 			}
 			else
 			{
-				player_vel_x = 600 * player_dash_dir_x;
-				player_vel_y = 600 * player_dash_dir_y;
+				player_vel_x = PLAYER_DASH_VELOCITY * player_dash_dir_x;
+				player_vel_y = PLAYER_DASH_VELOCITY * player_dash_dir_y;
 			}
 		}
 	}
-	if (player_on_floor && player_dash_timer < 10)
+	if (player_on_floor && player_dash_timer < PLAYER_DASH_REGAIN_FRAMES)
 		player_dash_remaining = 1;
 }
 
 void friction()
 {
-	int16_t vel_x_reduction = player_on_floor ? player_vel_x >> 4 : player_vel_x >> 6;
+	int16_t vel_x_reduction = player_on_floor ? FRICTION_X_GROUND(player_vel_x) : FRICTION_X_AIR(player_vel_x);
 	if (vel_x_reduction != 0)
 		player_vel_x -= vel_x_reduction;
 	else if (player_vel_x > 0)
@@ -396,7 +385,7 @@ void friction()
 		player_vel_x = PLAYER_MAX_VELOCITY;
 	else if (player_vel_x < -PLAYER_MAX_VELOCITY)
 		player_vel_x = -PLAYER_MAX_VELOCITY;
-	int16_t vel_y_reduction = (player_wall_friction && player_vel_y > 0) ? player_vel_y >> 3 : player_vel_y >> 6;
+	int16_t vel_y_reduction = (player_wall_friction && player_vel_y > 0) ? FRICTION_Y_WALL(player_vel_y) : FRICTION_Y_AIR(player_vel_y);
 	if (vel_y_reduction != 0)
 		player_vel_y -= vel_y_reduction;
 	else if (player_vel_y > 0)
@@ -685,7 +674,7 @@ int main()
 			fix_player_position();
 			if (is_player_dead())
 			{
-				player_death_timer = 200;
+				player_death_timer = DEATH_TIMER_FRAMES;
 			}
 			if (player_y_char == 0)
 			{
@@ -704,7 +693,7 @@ int main()
 		{
 			if (camera_delta_timer == 0)
 			{
-				camera_delta_timer = 5;
+				camera_delta_timer = CAMERA_DELTA_FRAMES;
 				if (camera_remaining_delta > 0)
 				{
 					camera_remaining_delta--;
@@ -726,7 +715,7 @@ int main()
 		else if (player_death_timer > 0)
 		{
 			player_death_timer--;
-			if (player_death_timer == 70)
+			if (player_death_timer == DEATH_TIMER_RESET_FRAME)
 			{
 				player_x = level_data_player_reset_x[level_current_segment];
 				player_y = level_data_player_reset_y[level_current_segment];
@@ -767,16 +756,16 @@ int main()
 			draw_character();
 			if (player_death_timer > 0)
 			{
-				if (player_death_timer >= 60 && player_death_timer < 140)
+				if (player_death_timer >= DEATH_TIMER_ANIM_5_FRAME && player_death_timer < DEATH_TIMER_ANIM_1_FRAME)
 					for (uint8_t i = 0; i < 16; i += 2)
 						lcd_row_1[i] = 255;
-				if (player_death_timer >= 40 && player_death_timer < 120)
+				if (player_death_timer >= DEATH_TIMER_ANIM_6_FRAME && player_death_timer < DEATH_TIMER_ANIM_2_FRAME)
 					for (uint8_t i = 0; i < 16; i += 2)
 						lcd_row_2[i] = 255;
-				if (player_death_timer >= 20 && player_death_timer < 100)
+				if (player_death_timer >= DEATH_TIMER_ANIM_7_FRAME && player_death_timer < DEATH_TIMER_ANIM_3_FRAME)
 					for (uint8_t i = 1; i < 16; i += 2)
 						lcd_row_1[i] = 255;
-				if (player_death_timer < 80)
+				if (player_death_timer < DEATH_TIMER_ANIM_4_FRAME)
 					for (uint8_t i = 1; i < 16; i += 2)
 						lcd_row_2[i] = 255;
 			}
