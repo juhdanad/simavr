@@ -739,7 +739,7 @@ int main()
 				update_player_surrounding();
 			}
 		}
-		// if ((frame & 1) == 1)
+		if ((frame & 0b11) == 0)
 		{
 			// draw
 			for (uint8_t i = 0; i < 4; i++)
