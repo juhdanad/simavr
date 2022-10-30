@@ -4,12 +4,28 @@
 #include "avr_mcu_section.h"
 AVR_MCU(F_CPU, "atmega128");
 
+#define __AVR_ATMEGA128__ 1
+#define __AVR_ATmega128__ 1
 #include "avr/io.h"
+#include "avr/sleep.h"
+#include "avr/interrupt.h"
 #include "lcd_helper.h"
 #include "hd44780_cgrom.h"
 #include "mini_celeste_level_data.h"
 
-#define __AVR_ATMEGA128__ 1
+#define GRAVITY 80
+#define GRAVITY_REDUCED 20
+#define PLAYER_MAX_VELOCITY 0xFF0
+#define PLAYER_JUMP_VELOCITY 1600
+#define PLAYER_WALL_JUMP_VELOCITY_X 800
+#define PLAYER_WALL_JUMP_VELOCITY_Y 400
+#define PLAYER_WALL_JUMP_VELOCITY_Y_BOOSTED 1200
+#define PLAYER_WALK_VELOCITY 100
+#define PLAYER_AIR_VELOCITY_X 50
+#define PLAYER_AIR_VELOCITY_Y 50
+
+#define PLAYER_JUMP_FRAMES_MAX 40
+#define PLAYER_WALL_JUMP_FRAMES_MAX 20
 
 static void port_init()
 {
@@ -231,11 +247,11 @@ void draw_character()
 	lcd_row_2[player_y_char + 1] = 3;
 }
 
-void process_controls()
+void process_controls() //
 {
 	if (!(PINA & 0b00000001))
 	{
-		player_vel_x -= player_on_floor ? 30 : 15;
+		player_vel_x -= player_on_floor ? PLAYER_WALK_VELOCITY : PLAYER_AIR_VELOCITY_X;
 		player_dash_default_x_direction = -1;
 	}
 	if (!(PINA & 0b00000010))
@@ -256,44 +272,44 @@ void process_controls()
 		player_jump_buffer--;
 		if (player_on_floor)
 		{
-			player_vel_y = -800;
-			player_jump_frames = 100;
+			player_vel_y = -PLAYER_JUMP_VELOCITY;
+			player_jump_frames = PLAYER_JUMP_FRAMES_MAX;
 			player_jump_buffer = 0;
 			player_dash_timer = 0;
 		}
 		else if (!player_on_e_wall && player_on_w_wall)
 		{
-			player_vel_y = (player_dash_timer > 0 && player_dash_dir_x == 0 && player_dash_dir_y == -1) ? -1200 : -400;
-			player_vel_x = 800;
+			player_vel_y = (player_dash_timer > 0 && player_dash_dir_x == 0 && player_dash_dir_y == -1) ? -PLAYER_WALL_JUMP_VELOCITY_Y_BOOSTED : -PLAYER_WALL_JUMP_VELOCITY_Y;
+			player_vel_x = PLAYER_WALL_JUMP_VELOCITY_X;
 			player_dash_default_x_direction = 1;
-			player_jump_frames = 50;
+			player_jump_frames = PLAYER_WALL_JUMP_FRAMES_MAX;
 			player_jump_buffer = 0;
 			player_dash_timer = 0;
 		}
 		else if (player_on_e_wall && !player_on_w_wall)
 		{
-			player_vel_y = (player_dash_timer > 0 && player_dash_dir_x == 0 && player_dash_dir_y == -1) ? -1200 : -400;
-			player_vel_x = -800;
+			player_vel_y = (player_dash_timer > 0 && player_dash_dir_x == 0 && player_dash_dir_y == -1) ? -PLAYER_WALL_JUMP_VELOCITY_Y_BOOSTED : -PLAYER_WALL_JUMP_VELOCITY_Y;
+			player_vel_x = -PLAYER_WALL_JUMP_VELOCITY_X;
 			player_dash_default_x_direction = -1;
-			player_jump_frames = 50;
+			player_jump_frames = PLAYER_WALL_JUMP_FRAMES_MAX;
 			player_jump_buffer = 0;
 			player_dash_timer = 0;
 		}
 		else if (player_on_e_wall && player_on_w_wall)
 		{
-			player_vel_y = -400;
-			player_jump_frames = 50;
+			player_vel_y = -PLAYER_WALL_JUMP_VELOCITY_Y;
+			player_jump_frames = PLAYER_WALL_JUMP_FRAMES_MAX;
 			player_jump_buffer = 0;
 			player_dash_timer = 0;
 		}
 	}
 	if (!(PINA & 0b00001000))
 	{
-		player_vel_y += 15;
+		player_vel_y += PLAYER_AIR_VELOCITY_Y;
 	}
 	if (!(PINA & 0b00010000))
 	{
-		player_vel_x += player_on_floor ? 30 : 15;
+		player_vel_x += player_on_floor ? PLAYER_WALK_VELOCITY : PLAYER_AIR_VELOCITY_X;
 		player_dash_default_x_direction = 1;
 	}
 	if (!(PINA & 0b00000100))
@@ -376,13 +392,21 @@ void friction()
 		player_vel_x--;
 	else if (player_vel_x < 0)
 		player_vel_x++;
-	int16_t vel_y_reduction = (player_wall_friction && player_vel_y > 0) ? player_vel_y >> 3 : player_vel_y >> 7;
+	if (player_vel_x > PLAYER_MAX_VELOCITY)
+		player_vel_x = PLAYER_MAX_VELOCITY;
+	else if (player_vel_x < -PLAYER_MAX_VELOCITY)
+		player_vel_x = -PLAYER_MAX_VELOCITY;
+	int16_t vel_y_reduction = (player_wall_friction && player_vel_y > 0) ? player_vel_y >> 3 : player_vel_y >> 6;
 	if (vel_y_reduction != 0)
 		player_vel_y -= vel_y_reduction;
 	else if (player_vel_y > 0)
 		player_vel_y--;
 	else if (player_vel_y < 0)
 		player_vel_y++;
+	if (player_vel_y > PLAYER_MAX_VELOCITY)
+		player_vel_y = PLAYER_MAX_VELOCITY;
+	else if (player_vel_y < -PLAYER_MAX_VELOCITY)
+		player_vel_y = -PLAYER_MAX_VELOCITY;
 }
 
 void move_with_speed()
@@ -603,8 +627,15 @@ void fix_player_position()
 	}
 }
 
+ISR(TIMER1_COMPA_vect)
+{
+}
+
 int main()
 {
+	TCCR1B = (1 << WGM12) | (1 << CS12);
+	OCR1A = 625;
+	TIMSK |= 1 << OCIE1A;
 	port_init();
 	lcd_init();
 	player_x = level_data_player_reset_x[INIT_SEGMENT];
@@ -614,8 +645,10 @@ int main()
 	for (uint8_t i = 0; i < 4; i++)
 		for (uint8_t j = 0; j < 8; j++)
 			lcd_cgram[i * 8 + j + 32] = level_data_spec_cherecters[level_current_segment][j][i];
+	sei();
 	while (1)
 	{
+		sleep_mode();
 		uint8_t is_alt = (frame & 0x7) >= 0x4 ? 1 : 0;
 		level_switch_timer++;
 		if (level_switch_timer >= level_data_switch_times[level_current_segment][level_switch_state])
@@ -643,7 +676,7 @@ int main()
 				}
 				if (!(player_on_floor && (player_y & 0xFFF) == 0xFFF))
 				{
-					player_vel_y += (player_jump_frames > 0) ? 5 : 20;
+					player_vel_y += (player_jump_frames > 0) ? GRAVITY_REDUCED : GRAVITY;
 				}
 				friction();
 			}
@@ -717,45 +750,50 @@ int main()
 				update_player_surrounding();
 			}
 		}
-		for (uint8_t i = 0; i < 4; i++)
-			for (uint8_t j = 0; j < 8; j++)
-				lcd_cgram[i * 8 + j + 32] = level_data_spec_cherecters[level_current_segment][j][i];
-		for (unsigned int i = 0; i < 16; ++i)
+		// if ((frame & 1) == 1)
 		{
-			lcd_row_1[i] = level_row_1[i];
+			// draw
+			for (uint8_t i = 0; i < 4; i++)
+				for (uint8_t j = 0; j < 8; j++)
+					lcd_cgram[i * 8 + j + 32] = level_data_spec_cherecters[level_current_segment][j][i];
+			for (unsigned int i = 0; i < 16; ++i)
+			{
+				lcd_row_1[i] = level_row_1[i];
+			}
+			for (unsigned int i = 0; i < 16; ++i)
+			{
+				lcd_row_2[i] = level_row_2[i];
+			}
+			draw_character();
+			if (player_death_timer > 0)
+			{
+				if (player_death_timer >= 60 && player_death_timer < 140)
+					for (uint8_t i = 0; i < 16; i += 2)
+						lcd_row_1[i] = 255;
+				if (player_death_timer >= 40 && player_death_timer < 120)
+					for (uint8_t i = 0; i < 16; i += 2)
+						lcd_row_2[i] = 255;
+				if (player_death_timer >= 20 && player_death_timer < 100)
+					for (uint8_t i = 1; i < 16; i += 2)
+						lcd_row_1[i] = 255;
+				if (player_death_timer < 80)
+					for (uint8_t i = 1; i < 16; i += 2)
+						lcd_row_2[i] = 255;
+			}
+			else if (player_y_char_old != player_y_char)
+			{
+				// hide character before modifying cgram significantly
+				lcd_send_command(DD_RAM_ADDR + player_y_char_old);
+				lcd_send_char(level_row_1[player_y_char_old]);
+				lcd_send_char(level_row_1[player_y_char_old + 1]);
+				lcd_send_command(DD_RAM_ADDR2 + player_y_char_old);
+				lcd_send_char(level_row_2[player_y_char_old]);
+				lcd_send_char(level_row_2[player_y_char_old + 1]);
+				player_y_char_old = player_y_char;
+			}
+			lcd_row_1[0] = (frame / 50) & 0xFF;
+			lcd_update();
 		}
-		for (unsigned int i = 0; i < 16; ++i)
-		{
-			lcd_row_2[i] = level_row_2[i];
-		}
-		draw_character();
-		if (player_death_timer > 0)
-		{
-			if (player_death_timer >= 60 && player_death_timer < 140)
-				for (uint8_t i = 0; i < 16; i += 2)
-					lcd_row_1[i] = 255;
-			if (player_death_timer >= 40 && player_death_timer < 120)
-				for (uint8_t i = 0; i < 16; i += 2)
-					lcd_row_2[i] = 255;
-			if (player_death_timer >= 20 && player_death_timer < 100)
-				for (uint8_t i = 1; i < 16; i += 2)
-					lcd_row_1[i] = 255;
-			if (player_death_timer < 80)
-				for (uint8_t i = 1; i < 16; i += 2)
-					lcd_row_2[i] = 255;
-		}
-		// hide character before modifying cgram significantly
-		if (player_y_char_old != player_y_char)
-		{
-			lcd_send_command(DD_RAM_ADDR + player_y_char_old);
-			lcd_send_char(level_row_1[player_y_char_old]);
-			lcd_send_char(level_row_1[player_y_char_old + 1]);
-			lcd_send_command(DD_RAM_ADDR2 + player_y_char_old);
-			lcd_send_char(level_row_2[player_y_char_old]);
-			lcd_send_char(level_row_2[player_y_char_old + 1]);
-			player_y_char_old = player_y_char;
-		}
-		lcd_update();
 		frame++;
 	}
 
