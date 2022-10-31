@@ -73,7 +73,7 @@ void lcd_init()
 static void lcd_e_pulse()
 {
 	PORTC = PORTC | 0b00000100; // set E to high
-	_delay_loop_1(255);
+	_delay_loop_1(220);
 	PORTC = PORTC & 0b11111011; // set E to low
 }
 

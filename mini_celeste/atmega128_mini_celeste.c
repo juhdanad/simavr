@@ -620,21 +620,41 @@ ISR(TIMER1_COMPA_vect)
 {
 }
 
-int main()
+void screen_main_game()
 {
-	TCCR1B = (1 << WGM12) | (1 << CS12);
-	OCR1A = 625;
-	TIMSK |= 1 << OCIE1A;
-	port_init();
-	lcd_init();
 	player_x = level_data_player_reset_x[INIT_SEGMENT];
 	player_y = level_data_player_reset_y[INIT_SEGMENT];
 	player_y_char = level_data_player_reset_y_char[INIT_SEGMENT];
+	player_vel_x = 0;
+	player_vel_y = 0;
+	player_y_char_old = player_y_char;
+	player_jump_frames = 0;
+	player_on_floor = 0;
+	player_on_e_wall = 0;
+	player_on_w_wall = 0;
+	player_jump_button_down = 0;
+	player_dash_button_down = 0;
+	player_jump_buffer = 0;
+	player_dash_remaining = 1;
+	player_dash_timer = 0;
+	player_dash_frames_in_movement = 0;
+	player_dash_input_timer = 0;
+	player_dash_default_x_direction = 1;
+	player_vel_x_before_dash = 0;
+	player_wall_friction = 0;
+	player_dash_dir_x = 0;
+	player_dash_dir_y = 0;
+	player_death_timer = 0;
+	camera_remaining_delta = 0;
+	camera_delta_timer = 0;
+	level_switch_timer = 0;
+	level_switch_state = 0;
+	level_current_segment = INIT_SEGMENT;
 	camera_position = LEVEL_SEGMENT_HEIGHT * (LEVEL_SEGMENT_NUMBER - 1 - INIT_SEGMENT);
+	frame = 0;
 	for (uint8_t i = 0; i < 4; i++)
 		for (uint8_t j = 0; j < 8; j++)
 			lcd_cgram[i * 8 + j + 32] = level_data_spec_cherecters[level_current_segment][j][i];
-	sei();
 	while (1)
 	{
 		sleep_mode();
@@ -739,6 +759,10 @@ int main()
 				update_player_surrounding();
 			}
 		}
+		if (level_current_segment >= LEVEL_SEGMENT_NUMBER - 1 && player_y_char < 10 && camera_remaining_delta == 0)
+		{
+			return;
+		}
 		if ((frame & 0b11) == 0)
 		{
 			// draw
@@ -784,6 +808,68 @@ int main()
 			lcd_update();
 		}
 		frame++;
+	}
+}
+
+void screen_finish()
+{
+	for (uint8_t i = 0; i < 16; i++)
+		lcd_row_1[i] = ' ';
+	for (uint8_t i = 0; i < 16; i++)
+		lcd_row_2[i] = ' ';
+	lcd_row_1[4] = 'F';
+	lcd_row_1[5] = 'i';
+	lcd_row_1[6] = 'n';
+	lcd_row_1[7] = 'i';
+	lcd_row_1[8] = 's';
+	lcd_row_1[9] = 'h';
+	lcd_row_1[10] = '!';
+	lcd_row_2[0] = 'T';
+	lcd_row_2[1] = 'i';
+	lcd_row_2[2] = 'm';
+	lcd_row_2[3] = 'e';
+	lcd_row_2[4] = ':';
+	lcd_row_2[15] = 's';
+	lcd_row_2[12] = '.';
+	uint32_t frame_tmp = frame;
+	lcd_row_2[14] = frame_tmp % 10 + '0';
+	frame_tmp /= 10;
+	lcd_row_2[13] = frame_tmp % 10 + '0';
+	frame_tmp /= 10;
+	lcd_row_2[11] = frame_tmp % 10 + '0';
+	frame_tmp /= 10;
+	uint8_t i = 10;
+	while (frame_tmp > 0)
+	{
+		lcd_row_2[i] = frame_tmp % 10 + '0';
+		frame_tmp /= 10;
+		i--;
+	}
+
+	lcd_update();
+	// wait for button release
+	while (!(PINA & 0b00000100))
+		sleep_mode();
+	// wait for button press & release
+	while (PINA & 0b00000100)
+		sleep_mode();
+	while (!(PINA & 0b00000100))
+		sleep_mode();
+	player_dash_button_down = 0;
+}
+
+int main()
+{
+	TCCR1B = (1 << WGM12) | (1 << CS12);
+	OCR1A = 625;
+	TIMSK |= 1 << OCIE1A;
+	port_init();
+	lcd_init();
+	sei();
+	while (1)
+	{
+		screen_main_game();
+		screen_finish();
 	}
 
 	return 0;

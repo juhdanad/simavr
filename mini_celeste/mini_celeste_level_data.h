@@ -2,7 +2,7 @@
 
 #define LEVEL_SEGMENT_HEIGHT 12
 #define LEVEL_SEGMENT_NUMBER 2
-#define INIT_SEGMENT 1
+#define INIT_SEGMENT 0
 
 static uint8_t level_data_characters[2][2][2][LEVEL_SEGMENT_HEIGHT * LEVEL_SEGMENT_NUMBER + 4] = {{{{45, 16, 43, 16, 40, 4, 16, 16, 45, 255, 45, 16, 16, 16, 16, 45, 16, 43, 16, 40, 16, 16, 16, 4, 4, 16, 255, 255},
                                                                                                     {45, 16, 43, 16, 40, 5, 16, 16, 45, 45, 45, 16, 16, 16, 46, 16, 44, 16, 42, 16, 16, 40, 16, 5, 5, 95, 255, 255}},
