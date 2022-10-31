@@ -804,11 +804,22 @@ void screen_main_game()
 				lcd_send_char(level_row_2[player_y_char_old + 1]);
 				player_y_char_old = player_y_char;
 			}
-			lcd_row_1[0] = (frame / 50) & 0xFF;
 			lcd_update();
 		}
 		frame++;
 	}
+}
+
+void wait_full_middle_press()
+{
+	// wait for button release
+	while (!(PINA & 0b00000100))
+		sleep_mode();
+	// wait for button press & release
+	while (PINA & 0b00000100)
+		sleep_mode();
+	while (!(PINA & 0b00000100))
+		sleep_mode();
 }
 
 void screen_finish()
@@ -847,15 +858,160 @@ void screen_finish()
 	}
 
 	lcd_update();
-	// wait for button release
-	while (!(PINA & 0b00000100))
+	wait_full_middle_press();
+}
+
+void lcd_print_delay(uint8_t c, uint8_t x, uint8_t row, uint8_t wait)
+{
+	(row ? lcd_row_2 : lcd_row_1)[x] = c;
+	lcd_update();
+	for (uint8_t i = 0; i < wait; i++)
 		sleep_mode();
-	// wait for button press & release
-	while (PINA & 0b00000100)
+}
+
+void lcd_shift()
+{
+	for (uint8_t j = 0; j < 16; j++)
+	{
+		for (uint8_t i = 15; i > 0; i--)
+			lcd_row_1[i] = lcd_row_1[i - 1];
+		for (uint8_t i = 15; i > 0; i--)
+			lcd_row_2[i] = lcd_row_2[i - 1];
+		lcd_row_1[0] = 255;
+		lcd_row_2[0] = 255;
+		lcd_update();
+		for (uint8_t i = 0; i < 5; i++)
+			sleep_mode();
+	}
+}
+
+void screen_start()
+{
+	for (uint8_t i = 0; i < 16; i++)
+		lcd_row_1[i] = ' ';
+	for (uint8_t i = 0; i < 16; i++)
+		lcd_row_2[i] = ' ';
+	lcd_row_1[6] = 'M';
+	lcd_row_1[7] = 'i';
+	lcd_row_1[8] = 'n';
+	lcd_row_1[9] = 'i';
+	lcd_row_2[4] = 'C';
+	lcd_row_2[5] = 'E';
+	lcd_row_2[6] = 'L';
+	lcd_row_2[7] = 'E';
+	lcd_row_2[8] = 'S';
+	lcd_row_2[9] = 'T';
+	lcd_row_2[10] = 'E';
+	lcd_update();
+	wait_full_middle_press();
+	for (uint8_t i = 0; i < 16; i++)
+		lcd_row_1[i] = 255;
+	for (uint8_t i = 0; i < 16; i++)
+		lcd_row_2[i] = 255;
+	lcd_update();
+	for (uint8_t i = 0; i < 80; i++)
+	{
 		sleep_mode();
-	while (!(PINA & 0b00000100))
-		sleep_mode();
-	player_dash_button_down = 0;
+	}
+	// this is it, Madeline.
+	lcd_print_delay('T', 2, 0, 5);
+	lcd_print_delay('h', 3, 0, 5);
+	lcd_print_delay('i', 4, 0, 5);
+	lcd_print_delay('s', 5, 0, 5);
+	lcd_print_delay(' ', 6, 0, 5);
+	lcd_print_delay('i', 7, 0, 5);
+	lcd_print_delay('s', 8, 0, 5);
+	lcd_print_delay(' ', 9, 0, 5);
+	lcd_print_delay('i', 10, 0, 5);
+	lcd_print_delay('t', 11, 0, 5);
+	lcd_print_delay(',', 12, 0, 5);
+	lcd_print_delay('M', 2, 1, 5);
+	lcd_print_delay('a', 3, 1, 5);
+	lcd_print_delay('d', 4, 1, 5);
+	lcd_print_delay('e', 5, 1, 5);
+	lcd_print_delay('l', 6, 1, 5);
+	lcd_print_delay('i', 7, 1, 5);
+	lcd_print_delay('n', 8, 1, 5);
+	lcd_print_delay('e', 9, 1, 5);
+	lcd_print_delay('.', 10, 1, 5);
+	lcd_print_delay('.', 11, 1, 5);
+	lcd_print_delay('.', 12, 1, 5);
+	wait_full_middle_press();
+	lcd_shift();
+	// just breathe.
+	lcd_print_delay('j', 1, 0, 5);
+	lcd_print_delay('u', 2, 0, 5);
+	lcd_print_delay('s', 3, 0, 5);
+	lcd_print_delay('t', 4, 0, 5);
+	lcd_print_delay(' ', 5, 0, 5);
+	lcd_print_delay('b', 6, 0, 5);
+	lcd_print_delay('r', 7, 0, 5);
+	lcd_print_delay('e', 8, 0, 5);
+	lcd_print_delay('a', 9, 0, 5);
+	lcd_print_delay('t', 10, 0, 5);
+	lcd_print_delay('h', 11, 0, 5);
+	lcd_print_delay('e', 12, 0, 5);
+	lcd_print_delay('.', 13, 0, 5);
+	wait_full_middle_press();
+	lcd_shift();
+	// why are you so nervous?
+	lcd_print_delay('W', 2, 0, 5);
+	lcd_print_delay('h', 3, 0, 5);
+	lcd_print_delay('y', 4, 0, 5);
+	lcd_print_delay(' ', 5, 0, 5);
+	lcd_print_delay('a', 6, 0, 5);
+	lcd_print_delay('r', 7, 0, 5);
+	lcd_print_delay('e', 8, 0, 5);
+	lcd_print_delay(' ', 9, 0, 5);
+	lcd_print_delay('y', 10, 0, 5);
+	lcd_print_delay('o', 11, 0, 5);
+	lcd_print_delay('u', 12, 0, 5);
+	lcd_print_delay('s', 2, 1, 5);
+	lcd_print_delay('o', 3, 1, 5);
+	lcd_print_delay(' ', 4, 1, 5);
+	lcd_print_delay('n', 5, 1, 5);
+	lcd_print_delay('e', 6, 1, 5);
+	lcd_print_delay('r', 7, 1, 5);
+	lcd_print_delay('v', 8, 1, 5);
+	lcd_print_delay('o', 9, 1, 5);
+	lcd_print_delay('u', 10, 1, 5);
+	lcd_print_delay('s', 11, 1, 5);
+	lcd_print_delay('?', 12, 1, 5);
+	wait_full_middle_press();
+	lcd_shift();
+	// you can do this.
+	lcd_print_delay('Y', 4, 0, 5);
+	lcd_print_delay('o', 5, 0, 5);
+	lcd_print_delay('u', 6, 0, 5);
+	lcd_print_delay(' ', 7, 0, 5);
+	lcd_print_delay('c', 8, 0, 5);
+	lcd_print_delay('a', 9, 0, 5);
+	lcd_print_delay('n', 10, 0, 5);
+	lcd_print_delay(' ', 11, 0, 5);
+	lcd_print_delay('d', 4, 1, 5);
+	lcd_print_delay('o', 5, 1, 5);
+	lcd_print_delay(' ', 6, 1, 5);
+	lcd_print_delay('t', 7, 1, 5);
+	lcd_print_delay('h', 8, 1, 5);
+	lcd_print_delay('i', 9, 1, 5);
+	lcd_print_delay('s', 10, 1, 5);
+	lcd_print_delay('.', 11, 1, 5);
+	wait_full_middle_press();
+	for (uint8_t i = 0; i < 4; i++)
+		for (uint8_t j = 0; j < 8; j++)
+			lcd_cgram[i * 8 + j + 32] = level_data_spec_cherecters[INIT_SEGMENT][j][i];
+	for (uint8_t j = 0; j < 16; j++)
+	{
+		for (uint8_t i = 15; i > 0; i--)
+			lcd_row_1[i] = lcd_row_1[i - 1];
+		for (uint8_t i = 15; i > 0; i--)
+			lcd_row_2[i] = lcd_row_2[i - 1];
+		lcd_row_1[0] = level_data_characters[0][0][0][LEVEL_SEGMENT_HEIGHT * LEVEL_SEGMENT_NUMBER + 3 - j];
+		lcd_row_2[0] = level_data_characters[0][0][1][LEVEL_SEGMENT_HEIGHT * LEVEL_SEGMENT_NUMBER + 3 - j];
+		lcd_update();
+		for (uint8_t i = 0; i < 8; i++)
+			sleep_mode();
+	}
 }
 
 int main()
@@ -866,6 +1022,7 @@ int main()
 	port_init();
 	lcd_init();
 	sei();
+	screen_start();
 	while (1)
 	{
 		screen_main_game();
