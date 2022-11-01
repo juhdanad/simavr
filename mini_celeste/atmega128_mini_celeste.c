@@ -503,7 +503,7 @@ uint8_t is_player_dead()
 	uint8_t player_y_pixel_red = (player_y >> 12) - 1;
 	uint8_t player_collision1 = ((player_surrounding[player_x_pixel] | player_surrounding_alt[player_x_pixel]) << player_y_pixel_red) >> 6;
 	uint8_t player_collision2 = ((player_surrounding[player_x_pixel + 1] | player_surrounding_alt[player_x_pixel + 1]) << player_y_pixel_red) >> 6;
-	return player_collision1 & 0b0100 || player_collision2 & 0b0100;
+	return player_collision1 & 0b0110 || player_collision2 & 0b0110;
 }
 
 void fix_player_position()
@@ -759,7 +759,7 @@ void screen_main_game()
 				update_player_surrounding();
 			}
 		}
-		if (level_current_segment >= LEVEL_SEGMENT_NUMBER - 1 && player_y_char < 10 && camera_remaining_delta == 0)
+		if (level_current_segment >= LEVEL_SEGMENT_NUMBER - 1 && player_y_char < 7 && camera_remaining_delta == 0)
 		{
 			return;
 		}
@@ -1022,7 +1022,7 @@ int main()
 	port_init();
 	lcd_init();
 	sei();
-	screen_start();
+	// screen_start();
 	while (1)
 	{
 		screen_main_game();
