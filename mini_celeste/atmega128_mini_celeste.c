@@ -16,6 +16,9 @@ AVR_MCU(F_CPU, "atmega128");
 
 #define PLAYER_MAX_VELOCITY 0xFF0
 
+#define PLAYER_DASH_VISUAL_FRAMES_1 5
+#define PLAYER_DASH_VISUAL_FRAMES_2 10
+
 static void port_init()
 {
 	PORTA = 0b00011111;
@@ -118,58 +121,58 @@ void draw_dash()
 	uint8_t player_y_pixel = player_y >> 12;
 	if (player_dash_dir_x == 1 && player_dash_dir_y == 0)
 	{
-		if (player_x_pixel > 0 && player_dash_frames_in_movement > 10)
+		if (player_x_pixel > 0 && player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_1)
 			player_display_buffer[player_x_pixel - 1] |= 0b001000000000 >> player_y_pixel;
-		if (player_x_pixel > 1 && player_dash_frames_in_movement > 20)
+		if (player_x_pixel > 1 && player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_2)
 			player_display_buffer[player_x_pixel - 2] |= 0b000100000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == -1 && player_dash_dir_y == 0)
 	{
-		if (player_x_pixel < 14 && player_dash_frames_in_movement > 10)
+		if (player_x_pixel < 14 && player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_1)
 			player_display_buffer[player_x_pixel + 2] |= 0b001000000000 >> player_y_pixel;
-		if (player_x_pixel < 13 && player_dash_frames_in_movement > 20)
+		if (player_x_pixel < 13 && player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_2)
 			player_display_buffer[player_x_pixel + 3] |= 0b000100000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == 0 && player_dash_dir_y == -1)
 	{
-		if (player_dash_frames_in_movement > 10)
+		if (player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_1)
 			player_display_buffer[player_x_pixel + 0] |= 0b000010000000 >> player_y_pixel;
-		if (player_dash_frames_in_movement > 20)
+		if (player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_2)
 			player_display_buffer[player_x_pixel + 1] |= 0b000001000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == 0 && player_dash_dir_y == 1)
 	{
-		if (player_dash_frames_in_movement > 10)
+		if (player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_1)
 			player_display_buffer[player_x_pixel + 0] |= 0b100000000000 >> player_y_pixel;
-		if (player_dash_frames_in_movement > 20)
+		if (player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_2)
 			player_display_buffer[player_x_pixel + 1] |= 0b010000000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == 1 && player_dash_dir_y == -1)
 	{
-		if (player_x_pixel > 0 && player_dash_frames_in_movement > 10)
+		if (player_x_pixel > 0 && player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_1)
 			player_display_buffer[player_x_pixel - 1] |= 0b000010000000 >> player_y_pixel;
-		if (player_x_pixel > 1 && player_dash_frames_in_movement > 20)
+		if (player_x_pixel > 1 && player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_2)
 			player_display_buffer[player_x_pixel - 2] |= 0b000001000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == 1 && player_dash_dir_y == 1)
 	{
-		if (player_x_pixel > 0 && player_dash_frames_in_movement > 10)
+		if (player_x_pixel > 0 && player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_1)
 			player_display_buffer[player_x_pixel - 1] |= 0b010000000000 >> player_y_pixel;
-		if (player_x_pixel > 1 && player_dash_frames_in_movement > 20)
+		if (player_x_pixel > 1 && player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_2)
 			player_display_buffer[player_x_pixel - 2] |= 0b100000000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == -1 && player_dash_dir_y == -1)
 	{
-		if (player_x_pixel < 14 && player_dash_frames_in_movement > 10)
+		if (player_x_pixel < 14 && player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_1)
 			player_display_buffer[player_x_pixel + 2] |= 0b000010000000 >> player_y_pixel;
-		if (player_x_pixel < 13 && player_dash_frames_in_movement > 20)
+		if (player_x_pixel < 13 && player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_2)
 			player_display_buffer[player_x_pixel + 3] |= 0b000001000000 >> player_y_pixel;
 	}
 	else if (player_dash_dir_x == -1 && player_dash_dir_y == 1)
 	{
-		if (player_x_pixel < 14 && player_dash_frames_in_movement > 10)
+		if (player_x_pixel < 14 && player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_1)
 			player_display_buffer[player_x_pixel + 2] |= 0b010000000000 >> player_y_pixel;
-		if (player_x_pixel < 13 && player_dash_frames_in_movement > 20)
+		if (player_x_pixel < 13 && player_dash_frames_in_movement > PLAYER_DASH_VISUAL_FRAMES_2)
 			player_display_buffer[player_x_pixel + 3] |= 0b100000000000 >> player_y_pixel;
 	}
 }
@@ -1022,7 +1025,7 @@ int main()
 	port_init();
 	lcd_init();
 	sei();
-	// screen_start();
+	screen_start();
 	while (1)
 	{
 		screen_main_game();
